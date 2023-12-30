@@ -1,0 +1,16 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+	    	target-path = "i2c1";
+	    	__overlay__ {
+	    		status = "okay";
+	    		ADS1115: adc16bit {
+	    			compatible = "org,ADS1115_ADC";
+	    			reg = <0x48>;
+	    			conversion-gpios = <&gpio 17 0>;
+	    		};
+	    	};
+	    };
+};
