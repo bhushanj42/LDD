@@ -5,26 +5,15 @@ struct ads1115drv_private_data ads_drv_data;
 ssize_t readADC_show(struct device *dev, struct device_attribute *attr, char *buf){
 	struct ads1115_device_data *dev_data = dev_get_drvdata(dev);
 	uint16_t ADCVal;
-	uint8_t resultReady;
 	
-	mutex_lock(&dev_data->bufMutex);
-	dev_data->conversionReady = CONVERSION_NOT_READY;
-	mutex_unlock(&dev_data->bufMutex);
-	
+	reinit_completion(&dev_data->conversionComplete);
 	if(dev_data->IsContinuousConversion == ADS_SINGLE_SHOT){
 		/*Trigger a dummy conversion*/
 		triggerConversion(dev_data);	
 	}
 	/*Now because of this dummy conversion signal a conversion will start inside ADS1115, when this conversion completes,
 	an IRQ will be raised, so here we will wait for the IRQ to be raised*/
-	resultReady = 0;
-	while(!resultReady){
-		mutex_lock(&dev_data->bufMutex);
-		if(dev_data->conversionReady == CONVERSION_READY){
-			resultReady = 1;
-		}
-		mutex_unlock(&dev_data->bufMutex);
-	}
+	wait_for_completion(&dev_data->conversionComplete);
 	
 	/*Now that we are here it means a conversion was successful and now we can read the value in the conversion register*/
 	ADCVal = readADCVal(dev_data);
@@ -74,11 +63,8 @@ static const struct attribute_group *ads_attr_groups[] = {
 
 static irqreturn_t conversion_ready_handler(int irq, void *data) {
 	struct ads1115_device_data *dev_data = (struct ads1115_device_data *)data;
-	
-	mutex_lock(&dev_data->bufMutex);
-	dev_data->conversionReady = CONVERSION_READY;
-	mutex_unlock(&dev_data->bufMutex);
-	
+
+	complete(&dev_data->conversionComplete);
 	return IRQ_HANDLED; 
 }
 
@@ -100,7 +86,8 @@ int ADS1115_probe(struct i2c_client *client){
 	dev_set_drvdata(dev, dev_data);
 	
 	dev_data->IsContinuousConversion = ADS_SINGLE_SHOT;
-	dev_data->conversionReady = CONVERSION_NOT_READY;
+	
+	init_completion(&dev_data->conversionComplete);
 	
 	/* Get GPIO */
 	dev_data->gpioDesc = devm_gpiod_get(dev, "conversion", GPIOD_ASIS);
