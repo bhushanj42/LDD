@@ -17,6 +17,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
+#include <linux/completion.h>
 
 #define ID_I2C_DEVICE			0
 
@@ -57,7 +58,7 @@ struct ads1115_device_data{
 	unsigned int gpio_IRQNum;
 	struct mutex bufMutex;
 	uint8_t IsContinuousConversion;
-	uint8_t conversionReady;
+	struct completion conversionComplete;
 };
 
 int InitADS1115(struct device *dev);
